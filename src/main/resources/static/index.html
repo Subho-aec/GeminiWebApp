@@ -1,178 +1,312 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Ask MedBot</title>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            margin: 0; 
-            padding: 20px; 
-            background-color: #f4f4f9; 
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-        h1 { 
-            color: #333; 
-            text-align: center; 
-            margin-bottom: 20px;
-        }
-        .container {
-            max-width: 700px; 
-            width: 100%;
-            padding: 20px; 
-            background-color: #fff; 
-            border-radius: 10px; 
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1); 
-            display: flex; 
-            flex-direction: column; 
-            height: 80vh;
-        }
-        .chat-history { 
-            flex-grow: 1; 
-            overflow-y: auto; 
-            padding-right: 10px; 
-            margin-bottom: 10px; 
-            display: flex;
-            flex-direction: column;
-        }
-        .message { 
-            padding: 10px 15px; 
-            border-radius: 20px; 
-            margin-bottom: 10px; 
-            clear: both; 
-            word-wrap: break-word;
-        }
-        .user-message { 
-            background-color: #007bff; 
-            color: white; 
-            align-self: flex-end;
-            border-bottom-right-radius: 0; 
-            max-width: 70%; 
-        }
-        .bot-message { 
-            background-color: #e2e2e2; 
-            color: #333; 
-            align-self: flex-start;
-            border-bottom-left-radius: 0; 
-            max-width: 70%;
-        }
-        .input-area { 
-            display: flex; 
-            width: 100%; 
-            margin-top: 10px; 
-        }
-        input[type="text"] { 
-            flex-grow: 1; 
-            padding: 10px; 
-            border: 1px solid #ccc; 
-            border-radius: 20px; 
-            margin-right: 10px; 
-            font-size: 1rem;
-        }
-        button { 
-            padding: 10px 20px; 
-            background-color: #007bff; 
-            color: white; 
-            border: none; 
-            border-radius: 20px; 
-            cursor: pointer; 
-            font-size: 1rem;
-        }
-        button:hover { 
-            background-color: #0056b3; 
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <title>Ask MedBot</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f4f4f9;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .container {
+      max-width: 760px;
+      width: 100%;
+      padding: 20px;
+      background-color: #fff;
+      border-radius: 12px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+      display: flex;
+      flex-direction: column;
+      height: 86vh;
+    }
+    h1 { color: #333; text-align: center; margin-bottom: 14px; }
+    .chat-history {
+      flex-grow: 1;
+      overflow-y: auto;
+      padding-right: 10px;
+      margin-bottom: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .message {
+      padding: 10px 14px;
+      border-radius: 18px;
+      margin-bottom: 6px;
+      word-wrap: break-word;
+      max-width: 80%;
+      position: relative;
+    }
+    .user-message {
+      background-color: #007bff;
+      color: white;
+      align-self: flex-end;
+      border-bottom-right-radius: 4px;
+    }
+    .bot-message {
+      background-color: #eef0f4;
+      color: #222;
+      align-self: flex-start;
+      border-bottom-left-radius: 4px;
+    }
+    .controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: 8px;
+    }
+    input[type="text"] {
+      flex-grow: 1;
+      padding: 10px 12px;
+      border: 1px solid #d0d6de;
+      border-radius: 20px;
+      font-size: 1rem;
+    }
+    button {
+      padding: 10px 14px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 0.95rem;
+    }
+    button.secondary {
+      background-color: #6c757d;
+    }
+    .rec-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: #dc3545; /* Red when inactive */
+      color: white;
+      border: none;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .rec-btn.listening {
+      background: #28a745; /* Green when listening */
+    }
+    .mode-select {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-left: 8px;
+    }
+    audio { margin-top: 8px; width: 100%; }
+    .small { font-size: 0.85rem; color: #666; margin-left: 6px; }
+    .tts-controls {
+      display: flex;
+      gap: 8px;
+      margin-top: 6px;
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Ask MedBot</h1>
-        <div class="chat-history" id="chatHistory">
-            </div>
-        <div class="input-area">
-            <input type="text" id="userInput" placeholder="Type your message..." onkeypress="handleKeyPress(event)" />
-            <button onclick="sendPrompt()">Send</button>
-        </div>
+  <div class="container">
+    <h1>Ask MedBot</h1>
+
+    <div id="chatHistory" class="chat-history"></div>
+
+    <div class="controls" style="margin-top: 10px;">
+      <input type="text" id="userInput" placeholder="Type your question..." onkeypress="handleKeyPress(event)" />
+      <button onclick="sendPrompt()">Send</button>
+
+      <button id="recordBtn" class="rec-btn" onclick="toggleRecording()">
+        <span id="recDot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#fff;"></span>
+        <span id="recLabel">Record</span>
+      </button>
+
+      <div class="mode-select" title="Choose response output">
+        <label><input type="radio" name="outputMode" value="text" checked> Text</label>
+        <label><input type="radio" name="outputMode" value="voice"> Voice</label>
+        <label><input type="radio" name="outputMode" value="both"> Both</label>
+      </div>
     </div>
+    <div class="small">Tip: Click <strong>Record</strong>, speak, then click again to stop or pause.</div>
+  </div>
 
-    <script>
-        // Use a single function to handle both button clicks and Enter key presses
-        function handleKeyPress(event) {
-            if (event.key === 'Enter') {
-                sendPrompt();
-            }
+  <script>
+    // ---- Speech Recognition ----
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition = null;
+    let final_transcript = '';
+
+    if (SpeechRecognition) {
+      recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+    }
+
+    // ---------- Helpers ----------
+    function selectedOutputMode() {
+      const r = document.querySelector('input[name="outputMode"]:checked');
+      return r ? r.value : "text";
+    }
+
+    function appendMessage(text, className, isMarkdown=false) {
+      const chatHistory = document.getElementById("chatHistory");
+      const messageDiv = document.createElement("div");
+      messageDiv.className = `message ${className}`;
+      messageDiv.innerHTML = isMarkdown ? marked.parse(text) : escapeHtml(text);
+      chatHistory.appendChild(messageDiv);
+      chatHistory.scrollTop = chatHistory.scrollHeight;
+      return messageDiv;
+    }
+
+    function escapeHtml(unsafe) {
+      if (unsafe == null) return "";
+      return unsafe
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function handleKeyPress(e) {
+      if (e.key === 'Enter') sendPrompt();
+    }
+
+    // ---------- Send Prompt ----------
+    async function sendPrompt() {
+      const input = document.getElementById("userInput");
+      const prompt = input.value.trim();
+      if (!prompt) return;
+
+      appendMessage(prompt, "user-message", false);
+      input.value = "";
+
+      const thinkingEl = appendMessage("Thinking...", "bot-message", false);
+
+      try {
+        const mode = selectedOutputMode();
+        const res = await fetch("api/gemini/generate", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ prompt: prompt, outputMode: mode })
+        });
+
+        if (!res.ok) throw new Error(await res.text());
+
+        const data = await res.json();
+        const botText = data.text || "No response text.";
+        thinkingEl.innerHTML = marked.parse(botText);
+
+        // Add "Listen" and "Stop" buttons for speech
+        const ttsDiv = document.createElement("div");
+        ttsDiv.className = "tts-controls";
+        const listenBtn = document.createElement("button");
+        listenBtn.textContent = "🔊 Listen";
+        const stopBtn = document.createElement("button");
+        stopBtn.textContent = "🛑 Stop";
+        ttsDiv.appendChild(listenBtn);
+        ttsDiv.appendChild(stopBtn);
+        thinkingEl.appendChild(ttsDiv);
+
+        listenBtn.onclick = () => speakText(botText);
+        stopBtn.onclick = () => window.speechSynthesis.cancel();
+
+        if (mode === "voice" || mode === "both") speakText(botText);
+      } catch (err) {
+        console.error(err);
+        thinkingEl.innerText = "❌ Error getting response from MedBot.";
+      }
+    }
+
+    // ---------- Improved Speech Output ----------
+    function speakText(markdownText) {
+      if (!window.speechSynthesis) {
+        alert("Speech Synthesis not supported in your browser.");
+        return;
+      }
+
+      // Convert Markdown → HTML → Plain text
+      const html = marked.parse(markdownText);
+      const tempDiv = document.createElement("div");
+      tempDiv.innerHTML = html;
+      const cleanText = tempDiv.textContent || tempDiv.innerText || "";
+
+      // Stop previous speech
+      window.speechSynthesis.cancel();
+
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.pitch = 1.1;
+      utterance.rate = 0.95;
+      utterance.volume = 1;
+
+      const voices = speechSynthesis.getVoices();
+      const preferredVoice = voices.find(v =>
+        v.name.includes("Google") || v.name.includes("Zira") || v.name.includes("Samantha")
+      );
+      if (preferredVoice) utterance.voice = preferredVoice;
+
+      window.speechSynthesis.speak(utterance);
+    }
+
+    // ---------- Speech Recognition ----------
+    if (recognition) {
+      recognition.onstart = function() {
+        document.getElementById("recordBtn").classList.add('listening');
+        document.getElementById("recLabel").innerText = "Listening...";
+        document.getElementById("recDot").style.background = "#fff";
+        final_transcript = '';
+      };
+
+      recognition.onerror = function(event) {
+        console.error('Speech Recognition Error:', event.error);
+        if (event.error !== 'no-speech') alert('Speech Recognition Error: ' + event.error);
+        stopUITracking();
+      };
+
+      recognition.onend = function() {
+        stopUITracking();
+        if (final_transcript.trim().length > 0) {
+          document.getElementById("userInput").value = final_transcript.trim();
+          setTimeout(sendPrompt, 250);
         }
+      };
 
-        async function sendPrompt() {
-            const userInput = document.getElementById("userInput");
-            const prompt = userInput.value;
-            if (!prompt.trim()) return;
-
-            // Display user message
-            appendMessage(prompt, 'user-message', false); // The user's message is not Markdown
-
-            userInput.value = '';
-
-            // Display "Thinking..." message and get a reference to it
-            const thinkingMessageElement = appendMessage('Thinking...', 'bot-message', false);
-
-            try {
-                const res = await fetch(location.pathname + 'api/gemini/generate', {
-                    method: 'POST',
-                    headers: {'Content-Type':'application/json'},
-                    body: JSON.stringify({ prompt: prompt })
-                });
-
-                if (!res.ok) {
-                    const errorText = await res.text();
-                    throw new Error(`Server error: ${res.status} - ${errorText}`);
-                }
-                
-                // Parse the response as JSON
-                const data = await res.json();
-                
-                // Extract the text from the JSON object
-                const geminiResponseText = data.candidates[0].content.parts[0].text;
-                
-                // Update the "Thinking..." message with the actual response and render Markdown
-                updateMessage(thinkingMessageElement, geminiResponseText, true);
-
-            } catch (error) {
-                console.error("Error sending prompt:", error);
-                // Update the thinking message with an error
-                updateMessage(thinkingMessageElement, "Error: Could not get a response from MedBot.", false);
-            }
+      recognition.onresult = function(event) {
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) final_transcript += transcript;
         }
+        document.getElementById("userInput").value = final_transcript;
+      };
+    } else {
+      document.getElementById("recordBtn").disabled = true;
+      document.getElementById("recLabel").innerText = "No Voice";
+      console.warn("Web Speech API not supported in this browser.");
+    }
 
-        // Helper function to create and append chat bubbles
-        function appendMessage(text, className, isMarkdown) {
-            const chatHistory = document.getElementById("chatHistory");
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${className}`;
-            
-            if (isMarkdown) {
-                messageDiv.innerHTML = marked.parse(text);
-            } else {
-                messageDiv.innerText = text;
-            }
+    function toggleRecording() {
+      if (!recognition) return;
+      if (document.getElementById("recordBtn").classList.contains('listening')) {
+        recognition.stop();
+      } else {
+        recognition.start();
+      }
+    }
 
-            chatHistory.appendChild(messageDiv);
-            chatHistory.scrollTop = chatHistory.scrollHeight; // Auto-scroll to the bottom
-            return messageDiv; // Return the created element
-        }
+    function stopUITracking() {
+      document.getElementById("recordBtn").classList.remove('listening');
+      document.getElementById("recLabel").innerText = "Record";
+      document.getElementById("recDot").style.background = "#fff";
+    }
 
-        // Helper function to update an existing message element
-        function updateMessage(element, newText, isMarkdown) {
-            if (isMarkdown) {
-                element.innerHTML = marked.parse(newText);
-            } else {
-                element.innerText = newText;
-            }
-            const chatHistory = document.getElementById("chatHistory");
-            chatHistory.scrollTop = chatHistory.scrollHeight; // Auto-scroll to the bottom
-        }
-    </script>
+    // Preload voices (some browsers need this)
+    window.speechSynthesis.onvoiceschanged = () => {};
+  </script>
 </body>
 </html>
