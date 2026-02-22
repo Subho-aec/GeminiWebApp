@@ -1,0 +1,23 @@
+# ═══════════════════════════════════════════════════════════════════════
+#  Render Deployment Configuration
+#  Render reads this file to auto-configure your service.
+#  Docs: https://render.com/docs/blueprint-spec
+# ═══════════════════════════════════════════════════════════════════════
+
+services:
+  - type: web
+    name: medbot-ai
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false                    # Set this in the Render dashboard
+      - key: ASSEMBLYAI_API_KEY
+        sync: false                    # Set this in the Render dashboard
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: PORT
+        value: "8084"
+    healthCheckPath: /api/health
+    autoDeploy: true                   # Auto-deploy on push to main branch

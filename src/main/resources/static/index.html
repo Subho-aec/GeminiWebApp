@@ -2,311 +2,281 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Ask MedBot</title>
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 20px;
-      background-color: #f4f4f9;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-    }
-    .container {
-      max-width: 760px;
-      width: 100%;
-      padding: 20px;
-      background-color: #fff;
-      border-radius: 12px;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.08);
-      display: flex;
-      flex-direction: column;
-      height: 86vh;
-    }
-    h1 { color: #333; text-align: center; margin-bottom: 14px; }
-    .chat-history {
-      flex-grow: 1;
-      overflow-y: auto;
-      padding-right: 10px;
-      margin-bottom: 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .message {
-      padding: 10px 14px;
-      border-radius: 18px;
-      margin-bottom: 6px;
-      word-wrap: break-word;
-      max-width: 80%;
-      position: relative;
-    }
-    .user-message {
-      background-color: #007bff;
-      color: white;
-      align-self: flex-end;
-      border-bottom-right-radius: 4px;
-    }
-    .bot-message {
-      background-color: #eef0f4;
-      color: #222;
-      align-self: flex-start;
-      border-bottom-left-radius: 4px;
-    }
-    .controls {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      margin-top: 8px;
-    }
-    input[type="text"] {
-      flex-grow: 1;
-      padding: 10px 12px;
-      border: 1px solid #d0d6de;
-      border-radius: 20px;
-      font-size: 1rem;
-    }
-    button {
-      padding: 10px 14px;
-      background-color: #007bff;
-      color: white;
-      border: none;
-      border-radius: 12px;
-      cursor: pointer;
-      font-size: 0.95rem;
-    }
-    button.secondary {
-      background-color: #6c757d;
-    }
-    .rec-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 12px;
-      border-radius: 999px;
-      background: #dc3545; /* Red when inactive */
-      color: white;
-      border: none;
-      cursor: pointer;
-      transition: background 0.3s;
-    }
-    .rec-btn.listening {
-      background: #28a745; /* Green when listening */
-    }
-    .mode-select {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      margin-left: 8px;
-    }
-    audio { margin-top: 8px; width: 100%; }
-    .small { font-size: 0.85rem; color: #666; margin-left: 6px; }
-    .tts-controls {
-      display: flex;
-      gap: 8px;
-      margin-top: 6px;
-    }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MedBot AI — Medical Assistant</title>
+  <meta name="description" content="AI-powered medical assistant supporting all 22 Indian languages with translation and text-to-speech" />
+
+  <!-- Google Fonts: Inter for UI, JetBrains Mono for code blocks -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- Application Styles -->
+  <link rel="stylesheet" href="css/app.css" />
 </head>
 <body>
-  <div class="container">
-    <h1>Ask MedBot</h1>
 
-    <div id="chatHistory" class="chat-history"></div>
+<div id="app">
 
-    <div class="controls" style="margin-top: 10px;">
-      <input type="text" id="userInput" placeholder="Type your question..." onkeypress="handleKeyPress(event)" />
-      <button onclick="sendPrompt()">Send</button>
+  <!-- ═══ Sidebar Overlay (mobile) ═══ -->
+  <div v-if="sidebarOpen" class="sidebar-overlay" @click="sidebarOpen = false"></div>
 
-      <button id="recordBtn" class="rec-btn" onclick="toggleRecording()">
-        <span id="recDot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#fff;"></span>
-        <span id="recLabel">Record</span>
+  <!-- ═══ SIDEBAR — Chat History ═══ -->
+  <aside class="sidebar" :class="{ open: sidebarOpen }">
+    <div class="sidebar-header">
+      <h2><span class="logo-icon">🏥</span> MedBot AI</h2>
+      <button class="new-chat-btn" @click="newChat">
+        ＋ New Chat
       </button>
-
-      <div class="mode-select" title="Choose response output">
-        <label><input type="radio" name="outputMode" value="text" checked> Text</label>
-        <label><input type="radio" name="outputMode" value="voice"> Voice</label>
-        <label><input type="radio" name="outputMode" value="both"> Both</label>
+    </div>
+    <div class="session-list">
+      <div
+        v-for="session in sessions"
+        :key="session.id"
+        class="session-item"
+        :class="{ active: session.id === currentSessionId }"
+        @click="loadSession(session.id)">
+        <span class="session-title">💬 {{ session.title }}</span>
+        <button class="delete-btn" @click="deleteSession(session.id, $event)">🗑</button>
+      </div>
+      <div v-if="sessions.length === 0" style="padding: 20px; text-align: center; font-size: 0.8rem; opacity: 0.5;">
+        No conversations yet
       </div>
     </div>
-    <div class="small">Tip: Click <strong>Record</strong>, speak, then click again to stop or pause.</div>
+  </aside>
+
+  <!-- ═══ MAIN CONTENT ═══ -->
+  <main class="main-content">
+
+    <!-- ─── Header Bar ─── -->
+    <header class="header">
+      <div class="header-left">
+        <button class="menu-toggle" @click="sidebarOpen = !sidebarOpen">☰</button>
+        <span class="header-title">🏥 MedBot AI</span>
+      </div>
+      <div class="header-right">
+        <div class="lang-selector">
+          <label>🌐 Language:</label>
+          <select v-model="selectedLanguage">
+            <option v-for="lang in languages" :key="lang.code" :value="lang.code">
+              {{ lang.nativeName }} ({{ lang.name }})
+            </option>
+          </select>
+        </div>
+        <button class="theme-toggle" @click="toggleTheme" :title="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'">
+          {{ themeIcon }}
+        </button>
+      </div>
+    </header>
+
+    <!-- ─── Medical Disclaimer ─── -->
+    <div class="disclaimer">
+      <span class="disclaimer-icon">⚕️</span>
+      <span>
+        <strong>Medical Disclaimer:</strong> MedBot provides general health information only and is not a substitute
+        for professional medical advice. Always consult a qualified healthcare provider.
+      </span>
+    </div>
+
+    <!-- ─── Chat Area ─── -->
+    <div class="chat-area" ref="chatArea">
+
+      <!-- Welcome Screen (shown when no messages) -->
+      <div v-if="messages.length === 0" class="welcome">
+        <div class="welcome-icon">🏥</div>
+        <h2>Welcome to MedBot AI</h2>
+        <p>
+          Your multilingual AI medical assistant supporting all 22 Indian languages.
+          Ask any health question, use voice input, or try the quick actions below.
+        </p>
+        <div class="quick-actions">
+          <button class="quick-action-btn" @click="quickAction('What are the symptoms of diabetes?')">
+            🩺 Diabetes Symptoms
+          </button>
+          <button class="quick-action-btn" @click="quickAction('How to manage high blood pressure at home?')">
+            ❤️ BP Management
+          </button>
+          <button class="quick-action-btn" @click="quickAction('What are common cold remedies?')">
+            🤧 Cold Remedies
+          </button>
+          <button class="quick-action-btn" @click="quickAction('Explain the importance of mental health')">
+            🧠 Mental Health
+          </button>
+          <button class="quick-action-btn" @click="quickAction('What vaccinations do children need?')">
+            💉 Child Vaccination
+          </button>
+          <button class="quick-action-btn" @click="quickAction('What is a balanced diet for an adult?')">
+            🥗 Balanced Diet
+          </button>
+        </div>
+      </div>
+
+      <!-- Messages -->
+      <div
+        v-for="(msg, index) in messages"
+        :key="index"
+        class="message"
+        :class="msg.role === 'user' ? 'user' : 'bot'">
+
+        <!-- Avatar -->
+        <div class="message-avatar">
+          {{ msg.role === 'user' ? '👤' : '🤖' }}
+        </div>
+
+        <!-- Content -->
+        <div class="message-content">
+          <!-- User messages: plain text -->
+          <template v-if="msg.role === 'user'">
+            {{ msg.content }}
+          </template>
+
+          <!-- Bot messages: rendered Markdown -->
+          <template v-else>
+            <div v-html="renderMarkdown(msg.content)"></div>
+
+            <!-- Streaming indicator -->
+            <div v-if="msg.streaming" class="typing-indicator">
+              <div class="typing-dot"></div>
+              <div class="typing-dot"></div>
+              <div class="typing-dot"></div>
+            </div>
+
+            <!-- Translated text (if any) -->
+            <div v-if="translatedMessages[index]" class="translated-text">
+              <span class="translated-badge">🌐 Translated to {{ translatedMessages[index].lang }}</span>
+              <div v-html="renderMarkdown(translatedMessages[index].text)"></div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div v-if="!msg.streaming" class="message-actions">
+              <!-- Listen -->
+              <button
+                class="msg-action-btn"
+                :class="{ active: currentSpeaking === index }"
+                @click="speakMessage(index)"
+                :title="currentSpeaking === index ? 'Stop speaking' : 'Listen to this'">
+                {{ currentSpeaking === index ? '⏹️ Stop' : '🔊 Listen' }}
+              </button>
+
+              <!-- TTS Speed (shown when speaking) -->
+              <div v-if="currentSpeaking === index" class="tts-speed">
+                <button class="tts-speed-btn" :class="{ active: ttsSpeed === 0.5 }" @click="setTtsSpeed(0.5)">0.5x</button>
+                <button class="tts-speed-btn" :class="{ active: ttsSpeed === 1.0 }" @click="setTtsSpeed(1.0)">1x</button>
+                <button class="tts-speed-btn" :class="{ active: ttsSpeed === 1.25 }" @click="setTtsSpeed(1.25)">1.25x</button>
+                <button class="tts-speed-btn" :class="{ active: ttsSpeed === 1.5 }" @click="setTtsSpeed(1.5)">1.5x</button>
+                <button class="tts-speed-btn" :class="{ active: ttsSpeed === 2.0 }" @click="setTtsSpeed(2.0)">2x</button>
+              </div>
+
+              <!-- Translate -->
+              <button
+                v-if="selectedLanguage !== 'en'"
+                class="msg-action-btn"
+                :class="{ active: !!translatedMessages[index] }"
+                @click="translateMessage(index)">
+                {{ translatedMessages[index] ? '🌐 Hide Translation' : '🌐 Translate' }}
+              </button>
+
+              <!-- Copy -->
+              <button
+                class="msg-action-btn"
+                :data-copy="index"
+                @click="copyMessage(index)">
+                📋 Copy
+              </button>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- Loading Indicator -->
+      <div v-if="isLoading && !isStreaming" class="message bot">
+        <div class="message-avatar">🤖</div>
+        <div class="message-content">
+          <div class="typing-indicator">
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── Input Area ─── -->
+    <div class="input-area">
+      <div class="input-container">
+        <textarea
+          ref="inputArea"
+          v-model="userInput"
+          @keydown="handleKeyDown"
+          :placeholder="isRecording ? 'Listening...' : `Ask a medical question in ${selectedLangObj.name}...`"
+          rows="1"
+          :disabled="isLoading"></textarea>
+
+        <!-- Voice Button -->
+        <button
+          class="input-btn voice-btn"
+          :class="{ recording: isRecording }"
+          @click="toggleRecording"
+          :title="isRecording ? 'Stop recording' : 'Voice input'">
+          {{ isRecording ? '⏹' : '🎤' }}
+        </button>
+
+        <!-- Send Button -->
+        <button
+          class="input-btn send-btn"
+          @click="sendMessage"
+          :disabled="!userInput.trim() || isLoading"
+          title="Send message">
+          ➤
+        </button>
+      </div>
+      <div class="input-hint">
+        <span>Enter to send · Shift+Enter for new line</span>
+        <span>Voice input adapts to selected language</span>
+      </div>
+    </div>
+  </main>
+
+  <!-- ═══ EMERGENCY FLOAT BUTTON ═══ -->
+  <div class="emergency-float">
+    <button class="emergency-btn" @click="showEmergency = !showEmergency">
+      🚨 Emergency
+    </button>
+    <div v-if="showEmergency" class="emergency-panel">
+      <h4>🚨 Emergency Helplines (India)</h4>
+      <div class="emergency-number">
+        <span>National Emergency</span>
+        <a href="tel:112">112</a>
+      </div>
+      <div class="emergency-number">
+        <span>Ambulance</span>
+        <a href="tel:108">108</a>
+      </div>
+      <div class="emergency-number">
+        <span>Health Helpline</span>
+        <a href="tel:104">104</a>
+      </div>
+      <div class="emergency-number">
+        <span>Mental Health (NIMHANS)</span>
+        <a href="tel:08046110007">080-46110007</a>
+      </div>
+      <div class="emergency-number">
+        <span>Poison Control</span>
+        <a href="tel:1800116117">1800-116-117</a>
+      </div>
+    </div>
   </div>
 
-  <script>
-    // ---- Speech Recognition ----
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    let recognition = null;
-    let final_transcript = '';
+</div>
 
-    if (SpeechRecognition) {
-      recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      recognition.lang = 'en-US';
-    }
+<!-- ═══ External Dependencies (CDN) ═══ -->
+<!-- Vue 3: The progressive JavaScript framework — loaded from unpkg CDN -->
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 
-    // ---------- Helpers ----------
-    function selectedOutputMode() {
-      const r = document.querySelector('input[name="outputMode"]:checked');
-      return r ? r.value : "text";
-    }
+<!-- Marked.js: Markdown parser — converts AI markdown responses to HTML -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
-    function appendMessage(text, className, isMarkdown=false) {
-      const chatHistory = document.getElementById("chatHistory");
-      const messageDiv = document.createElement("div");
-      messageDiv.className = `message ${className}`;
-      messageDiv.innerHTML = isMarkdown ? marked.parse(text) : escapeHtml(text);
-      chatHistory.appendChild(messageDiv);
-      chatHistory.scrollTop = chatHistory.scrollHeight;
-      return messageDiv;
-    }
+<!-- Application Script -->
+<script src="js/app.js"></script>
 
-    function escapeHtml(unsafe) {
-      if (unsafe == null) return "";
-      return unsafe
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
-    }
-
-    function handleKeyPress(e) {
-      if (e.key === 'Enter') sendPrompt();
-    }
-
-    // ---------- Send Prompt ----------
-    async function sendPrompt() {
-      const input = document.getElementById("userInput");
-      const prompt = input.value.trim();
-      if (!prompt) return;
-
-      appendMessage(prompt, "user-message", false);
-      input.value = "";
-
-      const thinkingEl = appendMessage("Thinking...", "bot-message", false);
-
-      try {
-        const mode = selectedOutputMode();
-        const res = await fetch("api/gemini/generate", {
-          method: "POST",
-          headers: {"Content-Type": "application/json"},
-          body: JSON.stringify({ prompt: prompt, outputMode: mode })
-        });
-
-        if (!res.ok) throw new Error(await res.text());
-
-        const data = await res.json();
-        const botText = data.text || "No response text.";
-        thinkingEl.innerHTML = marked.parse(botText);
-
-        // Add "Listen" and "Stop" buttons for speech
-        const ttsDiv = document.createElement("div");
-        ttsDiv.className = "tts-controls";
-        const listenBtn = document.createElement("button");
-        listenBtn.textContent = "🔊 Listen";
-        const stopBtn = document.createElement("button");
-        stopBtn.textContent = "🛑 Stop";
-        ttsDiv.appendChild(listenBtn);
-        ttsDiv.appendChild(stopBtn);
-        thinkingEl.appendChild(ttsDiv);
-
-        listenBtn.onclick = () => speakText(botText);
-        stopBtn.onclick = () => window.speechSynthesis.cancel();
-
-        if (mode === "voice" || mode === "both") speakText(botText);
-      } catch (err) {
-        console.error(err);
-        thinkingEl.innerText = "❌ Error getting response from MedBot.";
-      }
-    }
-
-    // ---------- Improved Speech Output ----------
-    function speakText(markdownText) {
-      if (!window.speechSynthesis) {
-        alert("Speech Synthesis not supported in your browser.");
-        return;
-      }
-
-      // Convert Markdown → HTML → Plain text
-      const html = marked.parse(markdownText);
-      const tempDiv = document.createElement("div");
-      tempDiv.innerHTML = html;
-      const cleanText = tempDiv.textContent || tempDiv.innerText || "";
-
-      // Stop previous speech
-      window.speechSynthesis.cancel();
-
-      const utterance = new SpeechSynthesisUtterance(cleanText);
-      utterance.pitch = 1.1;
-      utterance.rate = 0.95;
-      utterance.volume = 1;
-
-      const voices = speechSynthesis.getVoices();
-      const preferredVoice = voices.find(v =>
-        v.name.includes("Google") || v.name.includes("Zira") || v.name.includes("Samantha")
-      );
-      if (preferredVoice) utterance.voice = preferredVoice;
-
-      window.speechSynthesis.speak(utterance);
-    }
-
-    // ---------- Speech Recognition ----------
-    if (recognition) {
-      recognition.onstart = function() {
-        document.getElementById("recordBtn").classList.add('listening');
-        document.getElementById("recLabel").innerText = "Listening...";
-        document.getElementById("recDot").style.background = "#fff";
-        final_transcript = '';
-      };
-
-      recognition.onerror = function(event) {
-        console.error('Speech Recognition Error:', event.error);
-        if (event.error !== 'no-speech') alert('Speech Recognition Error: ' + event.error);
-        stopUITracking();
-      };
-
-      recognition.onend = function() {
-        stopUITracking();
-        if (final_transcript.trim().length > 0) {
-          document.getElementById("userInput").value = final_transcript.trim();
-          setTimeout(sendPrompt, 250);
-        }
-      };
-
-      recognition.onresult = function(event) {
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          const transcript = event.results[i][0].transcript;
-          if (event.results[i].isFinal) final_transcript += transcript;
-        }
-        document.getElementById("userInput").value = final_transcript;
-      };
-    } else {
-      document.getElementById("recordBtn").disabled = true;
-      document.getElementById("recLabel").innerText = "No Voice";
-      console.warn("Web Speech API not supported in this browser.");
-    }
-
-    function toggleRecording() {
-      if (!recognition) return;
-      if (document.getElementById("recordBtn").classList.contains('listening')) {
-        recognition.stop();
-      } else {
-        recognition.start();
-      }
-    }
-
-    function stopUITracking() {
-      document.getElementById("recordBtn").classList.remove('listening');
-      document.getElementById("recLabel").innerText = "Record";
-      document.getElementById("recDot").style.background = "#fff";
-    }
-
-    // Preload voices (some browsers need this)
-    window.speechSynthesis.onvoiceschanged = () => {};
-  </script>
 </body>
 </html>
