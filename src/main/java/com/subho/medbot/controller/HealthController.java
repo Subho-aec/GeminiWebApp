@@ -40,7 +40,7 @@ public class HealthController {
         health.put("features", Map.of(
             "translation", true,
             "tts", true,
-            "voiceInput", true,
+            "voiceInput", "browser-based (Web Speech API)",
             "streaming", true,
             "conversationMemory", true,
             "supportedLanguages", 23

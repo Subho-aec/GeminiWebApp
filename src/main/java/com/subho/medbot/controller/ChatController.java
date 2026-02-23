@@ -1,33 +1,29 @@
-package com.subho.medbot.controller;                                 // Controller layer — handles HTTP requests and delegates to services.
+package com.subho.medbot.controller;
 
-import com.subho.medbot.dto.request.ChatRequest;                       // The request DTO — carries prompt, sessionId, language, outputMode from the frontend.
-import com.subho.medbot.dto.response.ChatResponse;                     // The response DTO — carries AI text, session info, language metadata back to the frontend.
-import com.subho.medbot.model.ChatMessage;                             // Message model for conversation history.
-import com.subho.medbot.model.Language;                                // Language enum — used to get display names and TTS availability.
-import com.subho.medbot.service.AssemblyAIService;                     // Speech-to-text service for voice input.
-import com.subho.medbot.service.ChatMemoryService;                     // In-memory conversation storage.
-import com.subho.medbot.service.GeminiService;                         // Core AI service — generates responses using Gemini.
-import com.subho.medbot.service.TranslationService;                    // Translation service — translates responses to Indian languages.
+import com.subho.medbot.dto.request.ChatRequest;
+import com.subho.medbot.dto.response.ChatResponse;
+import com.subho.medbot.model.ChatMessage;
+import com.subho.medbot.model.Language;
+import com.subho.medbot.service.ChatMemoryService;
+import com.subho.medbot.service.GeminiService;
+import com.subho.medbot.service.TranslationService;
 
-import io.swagger.v3.oas.annotations.Operation;                       // OpenAPI/Swagger annotation for documenting endpoint purpose.
-import io.swagger.v3.oas.annotations.tags.Tag;                        // Groups related endpoints in Swagger UI.
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
-import jakarta.validation.Valid;                                       // Triggers Jakarta Bean Validation on the request body. If validation fails,
-                                                                       // Spring throws MethodArgumentNotValidException → caught by GlobalExceptionHandler.
+import jakarta.validation.Valid;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.springframework.http.ResponseEntity;                        // Wraps response body + status code + headers. Using ResponseEntity<ChatResponse>
-                                                                       // instead of returning ChatResponse directly gives us control over the HTTP status code.
-import org.springframework.web.bind.annotation.*;                      // @RestController, @RequestMapping, @PostMapping, @GetMapping, @RequestParam, etc.
-import org.springframework.web.multipart.MultipartFile;                // Represents an uploaded file in multipart/form-data requests.
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter; // Spring's Server-Sent Events emitter — enables streaming responses to the frontend.
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;                           // Thread pool for running SSE streaming asynchronously.
-import java.util.concurrent.Executors;                                 // Factory for creating thread pools.
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Main REST controller for MedBot chat functionality.
@@ -51,27 +47,15 @@ public class ChatController {
     private static final Logger log = LoggerFactory.getLogger(ChatController.class);
 
     private final GeminiService geminiService;
-    private final AssemblyAIService assemblyAIService;
     private final TranslationService translationService;
     private final ChatMemoryService chatMemoryService;
 
-    // Thread pool for SSE streaming — keeps the main request threads free.
-    // A virtual thread executor (Java 21+) would be even better, but Java 17 uses platform threads.
     private final ExecutorService sseExecutor = Executors.newCachedThreadPool();
 
-    // ─── Constructor Injection ──────────────────────────────────────────────────
-    // Spring sees these 4 parameters, finds the corresponding @Service beans, and injects them.
-    // This is better than @Autowired on fields because:
-    // 1. Makes dependencies explicit and visible
-    // 2. Fields can be final (immutable)
-    // 3. Easier to test (pass mocks via constructor)
-
     public ChatController(GeminiService geminiService,
-                          AssemblyAIService assemblyAIService,
                           TranslationService translationService,
                           ChatMemoryService chatMemoryService) {
         this.geminiService = geminiService;
-        this.assemblyAIService = assemblyAIService;
         this.translationService = translationService;
         this.chatMemoryService = chatMemoryService;
     }
@@ -142,43 +126,6 @@ public class ChatController {
             .ttsAvailable(language.isBrowserTtsSupported());
 
         return ResponseEntity.ok(response);
-    }
-
-    // ─── POST /api/chat/voice — Voice input endpoint ─────────────────────────────
-
-    @PostMapping(value = "/voice", consumes = {"multipart/form-data"})
-    @Operation(summary = "Send a voice message to MedBot",
-               description = "Upload audio → transcribe with AssemblyAI → generate AI response")
-    public ResponseEntity<ChatResponse> voiceChat(
-            @RequestParam("file") MultipartFile file,                  // The audio file uploaded by the browser's MediaRecorder
-            @RequestParam(value = "sessionId", required = false) String sessionId,
-            @RequestParam(value = "language", required = false, defaultValue = "en") String langCode,
-            @RequestParam(value = "outputMode", required = false, defaultValue = "both") String outputMode) {
-
-        log.info("Voice chat request — language: {}, session: {}", langCode, sessionId);
-
-        // 1. Transcribe audio to text
-        String transcription;
-        try {
-            transcription = assemblyAIService.speechToText(file);
-        } catch (Exception e) {
-            log.error("Speech-to-text failed: ", e);
-            return ResponseEntity.ok(new ChatResponse()
-                .text("Sorry, I couldn't understand the audio. Please try again or type your question.")
-                .sessionId(chatMemoryService.ensureSession(sessionId)));
-        }
-
-        // 2. Process as a regular chat request (reuse the main chat logic)
-        ChatRequest chatRequest = new ChatRequest(transcription, sessionId, langCode, outputMode);
-        ResponseEntity<ChatResponse> response = chat(chatRequest);
-
-        // 3. Add transcription to the response so the user can see what was heard
-        ChatResponse body = response.getBody();
-        if (body != null) {
-            body.transcription(transcription);
-        }
-
-        return response;
     }
 
     // ─── GET /api/chat/stream — Server-Sent Events streaming endpoint ────────────

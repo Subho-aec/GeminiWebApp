@@ -13,8 +13,6 @@ services:
     envVars:
       - key: GEMINI_API_KEY
         sync: false                    # Set this in the Render dashboard
-      - key: ASSEMBLYAI_API_KEY
-        sync: false                    # Set this in the Render dashboard
       - key: SPRING_PROFILES_ACTIVE
         value: prod
       - key: PORT
